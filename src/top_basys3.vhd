@@ -24,7 +24,9 @@ architecture top_basys3_arch of top_basys3 is
     signal floor2      : std_logic_vector(3 downto 0);
     signal tdm_data    : std_logic_vector(3 downto 0);
     signal tdm_sel     : std_logic_vector(3 downto 0);
-
+    
+    signal w_reset_clk : std_logic;
+    signal w_reset_fsm : std_logic;
     -- Components remain the same as original
     component sevenseg_decoder is
         port (
@@ -67,13 +69,14 @@ architecture top_basys3_arch of top_basys3 is
     end component;
 
 begin
-
+    w_reset_clk <= btnU or btnL;
+    w_reset_fsm <= btnU or btnR;
     -- 1. Elevator Clock: 0.5s update rate (2Hz)
     clkdiv_elev_inst : clock_divider
         generic map (k_DIV => 25000000) 
         port map(
             i_clk   => clk,
-            i_reset => btnU,
+            i_reset => w_reset_clk,
             o_clk   => slow_clk
         );
 
@@ -82,7 +85,7 @@ begin
         generic map (k_DIV => 400000) 
         port map(
             i_clk   => clk,
-            i_reset => btnU,
+            i_reset => w_reset_clk,
             o_clk   => display_clk
         );
 
@@ -90,7 +93,7 @@ begin
     elev1_inst : elevator_controller_fsm
         port map(
             i_clk      => slow_clk,
-            i_reset    => btnU,
+            i_reset    => w_reset_fsm,
             is_stopped => sw(0),
             go_up_down => sw(1),
             o_floor    => floor1
@@ -100,17 +103,17 @@ begin
     elev2_inst : elevator_controller_fsm
         port map(
             i_clk      => slow_clk,
-            i_reset    => btnU,
+            i_reset    => w_reset_fsm,
             is_stopped => sw(14),
             go_up_down => sw(15),
             o_floor    => floor2
         );
 
-    -- TDM Display Controller (Must use display_clk, NOT slow_clk)
+    -- TDM Display Controller (USes display_clk)
     tdm_inst : TDM4
         port map(
             i_clk   => display_clk,
-            i_reset => btnL,
+            i_reset => btnU,
             i_D3    => x"F",  -- Leftmost (Anode 3)
             i_D2    => floor2,  -- Second from Left (Anode 2)
             i_D1    => x"F",  -- Second from Right (Anode 1)
